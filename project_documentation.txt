@@ -1,0 +1,229 @@
+================================================================================
+🎓 COMPREHENSIVE COMPUTER GRAPHICS PROJECT DOCUMENTATION & VIVA PREPARATION GUIDE
+================================================================================
+Project Title: Multi-Scene 2D Animation (Cox's Bazar & Sajek Valley)
+Language: C++ (OpenGL Utility Toolkit - GLUT)
+Author's Viva Prep Kit
+================================================================================
+
+This document breaks down the entire codebase from basic to advanced concepts,
+explaining every built-in function, custom method, rendering layer, math formula,
+and logical control used in the project. Use this to study, memorize, and ace your viva!
+
+--------------------------------------------------------------------------------
+📌 SECTION 1: GLOSSARY OF BUILT-IN OPENGL & GLUT FUNCTIONS (BASIC TO ADVANCED)
+--------------------------------------------------------------------------------
+
+During your viva, the examiner will point to built-in functions and ask what they do.
+Here is the complete glossary of every built-in function used in "main.cpp":
+
+1. Program Setup & Window Management:
+   • glutInit(&argc, argv):
+     - Initializes the GLUT library. It processes command-line arguments (useful for system-level configurations).
+   • glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB):
+     - Sets the initial display mode. 
+     - GLUT_RGB: Enables Red, Green, Blue color mode (color buffer).
+     - GLUT_DOUBLE: Enables double buffering. This provides two buffers: a "front buffer" (what you see) and a "back buffer" (where the next frame is being drawn). This prevents screen flickering during animations.
+   • glutInitWindowSize(SCR_WIDTH, SCR_HEIGHT):
+     - Sets the width (1000 pixels) and height (600 pixels) of the application window.
+   • glutInitWindowPosition(100, 100):
+     - Sets the initial position of the window on your computer screen (100 pixels from top, 100 pixels from left).
+   • glutCreateWindow("Title"):
+     - Creates the window with the specified title in the header bar.
+   • glutMainLoop():
+     - Enters the GLUT event-processing loop. It keeps the program running and listening for display, keyboard, mouse, and timer events.
+
+2. Coordinate Projection & Colors:
+   • gluOrtho2D(left, right, bottom, top):
+     - Defines a 2D orthographic projection matrix. 
+     - It maps your drawing coordinates to screen coordinates. In this project, it maps (0 to 1000) on the X-axis and (0 to 600) on the Y-axis. The bottom-left corner is (0,0), and the top-right corner is (1000, 600).
+   • glClearColor(R, G, B, A):
+     - Sets the background color used when clearing the window. (e.g., light blue for day, dark blue/black for night).
+   • glClear(GL_COLOR_BUFFER_BIT):
+     - Clears the screen buffer with the color set in glClearColor. This prevents trails or smearing when moving animated objects.
+   • glColor3f(R, G, B):
+     - Sets the current drawing color using Red, Green, and Blue floating-point values ranging from 0.0f (darkest) to 1.0f (brightest).
+   • glColor4f(R, G, B, A):
+     - Sets the drawing color with an added Alpha (A) value for transparency (0.0f = completely transparent, 1.0f = completely solid).
+
+3. Shape Drawing Primitives:
+   • glBegin(PrimitiveType) and glEnd():
+     - All drawing vertices must be wrapped inside a glBegin() and glEnd() block.
+     - GL_QUADS: Group of 4 vertices forming a quadrilateral (rectangle/square).
+     - GL_TRIANGLES: Group of 3 vertices forming a triangle.
+     - GL_LINE_STRIP: Connects a sequence of vertices with line segments. Used for water wave ripples.
+     - GL_LINES: Draws individual separated lines. Used for rain drops.
+     - GL_POINTS: Draws individual pixels/points on the screen. Used for stars and sand dots.
+     - GL_POLYGON: Draws a filled, convex polygon. Used for circles and custom shapes.
+   • glVertex2f(x, y):
+     - Specifies a single 2D vertex (coordinate) using floating-point values.
+
+4. Matrix Transformations (The "Advance" Group):
+   • glPushMatrix():
+     - Saves the current matrix state on the stack. Useful when you want to translate/rotate/scale one specific object without affecting the rest of the scene.
+   • glPopMatrix():
+     - Restores the saved matrix state from the stack, ending the local transformation.
+   • glTranslatef(tx, ty, tz):
+     - Translates (moves) the coordinate origin by tx along X and ty along Y.
+   • glRotatef(angle, x, y, z):
+     - Rotates the coordinate system by a specific angle (in degrees) around the (x, y, z) vector. In 2D, we rotate around the Z-axis: glRotatef(angle, 0, 0, 1).
+   • glScalef(sx, sy, sz):
+     - Scales (resizes) the coordinate system by sx along X and sy along Y. Used to make the flying birds look smaller as they fly away.
+
+5. Alpha Blending (Transparency):
+   • glEnable(GL_BLEND):
+     - Enables transparency blending (crucial for rain, glowing headlights, and soft lights).
+   • glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA):
+     - Sets the mathematical blending equation for transparency based on the alpha value.
+   • glDisable(GL_BLEND):
+     - Disables blending to restore normal solid color drawing.
+
+6. Text Overlay & Input Handling:
+   • glRasterPos2f(x, y):
+     - Sets the starting position coordinate on the screen for rendering text.
+   • glutBitmapCharacter(font, character):
+     - Renders a single character using the specified raster font (e.g., GLUT_BITMAP_HELVETICA_18).
+   • glutDisplayFunc(callback):
+     - Registers the custom function (display) that renders the visual frames.
+   • glutTimerFunc(millis, callback, value):
+     - Registers a timer callback that runs after 'millis' milliseconds. Used to drive the animation loop at ~60 frames per second.
+   • glutKeyboardFunc(callback):
+     - Registers the keyboard handler function (handleKey).
+   • glutMouseFunc(callback):
+     - Registers the mouse click handler function (handleMouse).
+   • glutPostRedisplay():
+     - Flags the window as needing to be redrawn, triggering glutDisplayFunc on the next cycle.
+
+--------------------------------------------------------------------------------
+📌 SECTION 2: GLOBAL DATA STRUCTURES (BLUEPRINTS)
+--------------------------------------------------------------------------------
+
+The project uses structs to group variables representing elements in the scenes:
+
+• struct Hotel { float x, w, h, r, g, b; int type; };
+  - Stores X-coordinate, Width, Height, RGB color, and Building Type (Modern, Traditional, Motel) for Scene 1 buildings.
+• struct Car { float x, y, speed, maxSpeed; int lane; float r, g, b, width; int type; };
+  - Blueprint for all moving vehicles:
+    - x, y: Position on screen.
+    - speed: Current velocity.
+    - maxSpeed: Maximum target velocity (allows slowdowns).
+    - lane: Road sub-lane (0 = top/leftward, 1 = bottom/rightward).
+    - r, g, b: Car body color.
+    - width: Width of the car.
+    - type: Shape identifier (0 = Sedan, 1 = SUV, 2 = Sports Car).
+• struct Cloud { float x, y, speed; };
+  - X, Y, and speed of drifting clouds.
+• struct RainDrop { float x, y, speed; };
+  - Position and falling speed of rain elements.
+• struct Star { float x, y, alpha, glowSpeed; int direction; };
+  - Alpha (brightness) and direction (glowing/dimming) of stars.
+• struct Bird { float x, y, speed, scale, wingAngle; int wingDir; };
+  - Parameters for flying birds (includes wings flapping rotation & depth scaling).
+
+--------------------------------------------------------------------------------
+📌 SECTION 3: STEP-BY-STEP BREAKDOWN OF CUSTOM FUNCTIONS
+--------------------------------------------------------------------------------
+
+1. The Coordinate Helper Functions:
+   • void drawRect(float x, float y, float w, float h):
+     - Renders a quad (rectangle) using GL_QUADS. Starting from bottom-left (x, y), it draws clockwise:
+       (x, y) -> (x+w, y) -> (x+w, y+h) -> (x, y+h).
+   • void drawCircle(float cx, float cy, float r, int segments):
+     - Math Breakdown: Renders a circle using GL_POLYGON. It loops from 0 to 'segments'.
+     - For each segment, it calculates an angle: theta = 2 * PI * i / segments.
+     - Trigonometry:
+       x_coordinate = r * cos(theta) + cx
+       y_coordinate = r * sin(theta) + cy
+     - This creates a smooth circular polygon shape around center (cx, cy).
+
+2. Drawing Complex Objects:
+   • drawCar(Car c):
+     - Draws wheels using overlapping circles, then draws the body based on its type (SUV, Sedan, or Sports Car) using combinations of quads/polygons.
+     - Headlights: If isNight is true, it renders a semi-transparent headlight cone using GL_TRIANGLE_FAN. The beam projects leftwards if lane is 0, and rightwards if lane is 1.
+   • drawTree(float x, float y, float size, int type):
+     - Pine Tree (type 0): Draws a brown rectangular trunk, followed by 3 overlapping green GL_TRIANGLES stacked vertically.
+     - Deciduous Tree (type 1): Draws trunk, followed by 5 overlapping circles via drawCircle to make a dense, realistic canopy.
+     - Poplar Tree (type 2): Draws trunk and a tall, narrow elongated diamond canopy using GL_POLYGON.
+   • drawWindmill(float x, float y):
+     - Draws windmill tower trunk.
+     - Local Rotation: Uses glPushMatrix(), glTranslatef(x, y + 100, 0) to set the rotor hub as the local center.
+     - Rotates coordinates by the dynamic windmillAngle using glRotatef(windmillAngle, 0, 0, 1).
+     - Draws 3 identical triangular blades, each offset by 120 degrees inside a loop.
+     - Restores matrix via glPopMatrix().
+   • drawBird(Bird b):
+     - Sets local coordinates via translations and scales the bird using glScalef(b.scale, b.scale, 1.0f).
+     - Renders tail feathers, body, head, and beak.
+     - Local Wing Flapping: Set wing center, rotate coordinate system by +wingAngle and -wingAngle for left and right wings respectively, and draw triangles.
+
+--------------------------------------------------------------------------------
+📌 SECTION 4: SCREEN LAYERING & DEPTH (THE PAINTER'S ALGORITHM)
+--------------------------------------------------------------------------------
+
+In 2D OpenGL, depth is determined by the order in which items are drawn. Elements drawn later will overlap elements drawn earlier. This is called the "Painter's Algorithm".
+
+Scene 1 Layer Hierarchy (Deepest to Frontmost):
+1. Sky Background (deepest color quad + glowing stars + moon/sun)
+2. Sea Layer (royal blue rectangle)
+3. Distant Ground & beach (sand dots are scattered on top of beach)
+4. Distant Ships (drawn on top of the sea layer)
+5. Clouds (drawn drifting in the sky)
+6. Hotels & motels (drawn on top of the distant green ground)
+7. Road Surface (grey road, white dashed lines, and concrete curbs)
+8. Moving Traffic (vehicles are drawn AFTER the road to ensure they stay on top)
+9. Rain (drawn on top of everything to simulate falling in front of the camera)
+
+Scene 2 Layer Hierarchy (Deepest to Frontmost):
+1. Sky Background (gradient quads + stars + sun/moon)
+2. Mountain Backdrop (drawn as overlapping triangles behind the plateau)
+3. Soaring Birds (drawn in front of the mountains, flying through the sky)
+4. Upper Plateau (green field rectangle)
+5. Farmhouses (drawn on top of the upper plateau)
+6. Plateau Trees (pine and deciduous forests)
+7. Windmills (blades spin on top of the background trees)
+8. Road Surface (concrete surface, dashes, and curbs)
+9. Moving Traffic (cars rendered on the roadway layer)
+10. Foreground River Canal (royal blue base with dynamic wave line strips)
+11. Canal-side Forest Buffers (foreground trees drawn at the very front of the screen)
+
+--------------------------------------------------------------------------------
+📌 SECTION 5: ADVANCED ANIMATION LOGIC & TRAFFIC AI
+--------------------------------------------------------------------------------
+
+1. Simple Object Animations:
+   • Boats, Clouds, and Birds:
+     - x coordinates are updated by adding their respective speed in every update call.
+     - Boundary resets are used to loop them continuously (e.g. if x > SCR_WIDTH, reset x to -150).
+   • Wave Ripples:
+     - waterWaveOffset increases dynamically, which shifts the sine wave x-parameter over time, simulating flowing water.
+
+2. The 2-Pass Traffic AI (Collision Avoidance):
+   - Problem: If Car A is behind Car B, and Car B is behind Car C, a simple loop will process Car A's speed before Car B slows down for Car C. This causes cascading delays and makes cars group/clump up.
+   - Solution (2-Pass System):
+     • Set speeds to default max speeds.
+     • Pass 1: Checks for close proximity (130px) and calculates initial slowing adjustments.
+     • Pass 2: Propagates the adjusted slower speed backwards through the lane queue.
+     • If a car is going right (lane 1), we use min(rear_speed, front_speed) to slow down.
+     • If a car is going left (lane 0, negative speeds), we use max(rear_speed, front_speed) (e.g. max(-3.0, -2.5) = -2.5, which is a slower leftward speed).
+   - Uniform Spacing Fix:
+     • In Scene 1 and Scene 2, same-lane cars have identical absolute speeds (2.5 / -2.5) and are initialized exactly 350px apart. Because their relative velocity is 0.0f, they stay perfectly aligned in a chain, one after another, and never cluster together.
+
+--------------------------------------------------------------------------------
+📌 SECTION 6: USER INTERACTION CONTROLS
+--------------------------------------------------------------------------------
+
+1. Keyboard Inputs (handleKey):
+   • Tab Key (ASCII 9): Switches between Scene 1 and Scene 2 by toggling currentScene.
+   • 'N' / 'n': Sets isNight = true and lights up all house windows.
+   • 'D' / 'd': Sets isNight = false.
+   • '0' (Speed Stop): Sets speed scale to 0.0f, stopping windmill blades and traffic.
+   • '1' (Normal Speed): Sets speed scale to 1.0f.
+   • '2' (Fast Speed): Sets speed scale to 3.0f (windmills) / 2.5f (traffic).
+   • Esc Key (ASCII 27): Closes the window and exits the application cleanly.
+
+2. Mouse Inputs (handleMouse):
+   • Scene 1: Left-clicking anywhere on the screen toggles the rain state (isRaining).
+   • Scene 2: Uses a bounding box collision test. If the user clicks within the boundaries of a farmhouse, it toggles that specific house's window light:
+     - House 1 bounding box: X between 120-220, Y between 220-300
+     - House 2 bounding box: X between 450-550, Y between 220-300
+     - House 3 bounding box: X between 780-880, Y between 220-300
+================================================================================

@@ -1,0 +1,10 @@
+# Compiled binaries and object files
+bin/
+obj/
+
+# Code::Blocks temporary / local settings files
+*.layout
+*.depend
+*.cbTemp
+*.o
+*.exe
