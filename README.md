@@ -4,99 +4,19 @@ An interactive, premium-tier 2D graphics application built in **C++** using the 
 
 ---
 
-## 🗺️ System Architecture & Scenes
+## 🖼️ Visual Preview & Gallery
 
-The application uses a state-driven display manager that coordinates user input, rendering layers, and object update cycles. 
+Here is a side-by-side showcase of both scenes in their respective Day and Night modes:
 
-### 🔄 Scene Manager & Controls Flow
-Below is the interactive state and controls map:
+### 🌊 Scene 1: Cox's Bazar Beach
+| ☀️ Day Mode | 🌙 Night Mode |
+|:---:|:---:|
+| ![Cox's Bazar Day](coxs%20day.png) | ![Cox's Bazar Night](coxs%20night.png) |
 
-```mermaid
-stateDiagram-v2
-    [*] --> CoxsBazar : Default (Scene 1)
-    CoxsBazar --> SajekValley : Press Tab
-    SajekValley --> CoxsBazar : Press Tab
-    
-    state CoxsBazar {
-        [*] --> DayMode1
-        DayMode1 --> NightMode1 : Press N / n
-        NightMode1 --> DayMode1 : Press D / d
-        
-        state DayMode1 {
-            [*] --> RainOff_Day
-            RainOff_Day --> RainOn_Day : Left Click
-            RainOn_Day --> RainOff_Day : Left Click
-        }
-        state NightMode1 {
-            [*] --> RainOff_Night
-            RainOff_Night --> RainOn_Night : Left Click
-            RainOn_Night --> RainOff_Night : Left Click
-        }
-    }
-    
-    state SajekValley {
-        [*] --> DayMode2
-        DayMode2 --> NightMode2 : Press N / n
-        NightMode2 --> DayMode2 : Press D / d
-        
-        state NightMode2 {
-            [*] --> CottageLightsOn
-            CottageLightsOn --> ToggleCottageLights : Left Click on Farmhouse
-            ToggleCottageLights --> CottageLightsOn
-        }
-    }
-```
-
----
-
-## 🛠️ Key Technical Implementations
-
-### 🚗 1. Collision-Avoidance Traffic AI (2-Pass Propagation)
-To prevent vehicles in the same lane from clumping and overlapping, the update loop runs a **2-Pass Traffic AI**:
-* **Pass 1 (Proximity Scan)**: Checks the distance between vehicles. If a tailing vehicle is within a safe distance ($130\text{px}$) of the leading vehicle, it adjusts its speed.
-* **Pass 2 (Speed Propagation)**: Propagates adjusted velocities backward along the lane queue. This prevents cascading delays and preserves uniform spacing.
-
-```mermaid
-flowchart TD
-    Start([Start Update Loop]) --> Pass1[Pass 1: Proximity Detection]
-    Pass1 --> LoopCars1{For each vehicle i}
-    LoopCars1 --> ResetSpeed[Set speed to maxSpeed * speedScale]
-    ResetSpeed --> CheckSafe{Is vehicle j in same lane<br/>and within 130px ahead?}
-    CheckSafe -- Yes, Right Lane --> SlowRight[Adjust speed to min of i and j]
-    CheckSafe -- Yes, Left Lane --> SlowLeft[Adjust speed to max of i and j]
-    CheckSafe -- No --> NextCar1
-    SlowRight --> NextCar1
-    SlowLeft --> NextCar1
-    NextCar1 --> LoopCars1
-    LoopCars1 -- Loop Completed --> Pass2[Pass 2: Speed Propagation]
-    Pass2 --> LoopCars2{For each vehicle i}
-    LoopCars2 --> PropagateSpeed{Apply Adjusted Speed}
-    PropagateSpeed --> UpdatePos[Update position X by speed]
-    UpdatePos --> CheckBoundary{Out of boundary?}
-    CheckBoundary -- Yes --> ResetPos[Reset position to opposite screen edge]
-    CheckBoundary -- No --> NextCar2
-    ResetPos --> NextCar2
-    NextCar2 --> LoopCars2
-    LoopCars2 -- Loop Completed --> End([End Update Loop])
-```
-
-### 🛸 2. Advanced 2D Transformations (Local Matrix Stack)
-* **Wing Flapping Animation**: Wing rotation is isolated from the bird's main body translation by pushing coordinates onto the matrix stack:
-  ```cpp
-  glPushMatrix();
-  glTranslatef(0, 5, 0); // Translate to left wing joint
-  glRotatef(wingAngle, 0, 0, 1); // Rotate wing locally
-  // Draw wing triangle...
-  glPopMatrix();
-  ```
-* **Depth Simulation (Perspective Scaling)**: As the soaring birds fly across the screen, they scale down dynamically:
-  $$\text{scale}(x) = 1.0 - \left(\frac{x}{\text{SCR\_WIDTH}}\right) \times 0.6$$
-  This creates a realistic 3D depth effect on a flat 2D projection.
-
-### 🌊 3. Shaded Render Layering & Wave Equations
-* **Painter's Algorithm**: Objects are drawn in a back-to-front stack sequence. Background layers (sky, mountains, celestial objects) are drawn first, followed by midground (houses, windmills, roadways), and foreground (river, waves, tree buffers) to ensure proper occlusion.
-* **Fluid Wave Motion**: Water wave ripples are simulated using mathematical sine-wave offsets:
-  $$y(x) = \text{base\_y} + \sin((x + \text{offset}) \times 0.04) \times 3.5$$
+### ⛰️ Scene 2: Sajek Valley
+| ☀️ Day Mode | 🌙 Night Mode |
+|:---:|:---:|
+| ![Sajek Valley Day](sajek%20day.png) | ![Sajek Valley Night](sajek%20night.png) |
 
 ---
 
@@ -116,6 +36,33 @@ flowchart TD
 ### 🖱️ Mouse Interactions
 * **Cox's Bazar (Scene 1)**: Click anywhere on the screen to toggle realistic falling **Rain**.
 * **Sajek Valley (Scene 2)**: Left-click on any of the three farmhouses to toggle their window lights on or off (Active in **Night Mode** only, calculated via exact coordinate bounding boxes).
+
+---
+
+## ⚙️ Key Technical Implementations
+
+### 🚗 1. Collision-Avoidance Traffic AI (2-Pass Propagation)
+To prevent vehicles in the same lane from clumping and overlapping, the update loop runs a **2-Pass Traffic AI**:
+* **Pass 1 (Proximity Scan)**: Checks the distance between vehicles. If a tailing vehicle is within a safe distance ($130\text{px}$) of the leading vehicle, it adjusts its speed.
+* **Pass 2 (Speed Propagation)**: Propagates adjusted velocities backward along the lane queue. This prevents cascading delays and preserves uniform spacing (using `min()` for right-bound and `max()` for left-bound traffic).
+
+### 🛸 2. Advanced 2D Transformations (Local Matrix Stack)
+* **Wing Flapping Animation**: Wing rotation is isolated from the bird's main body translation by pushing coordinates onto the matrix stack:
+  ```cpp
+  glPushMatrix();
+  glTranslatef(0, 5, 0); // Translate to left wing joint
+  glRotatef(wingAngle, 0, 0, 1); // Rotate wing locally
+  // Draw wing triangle...
+  glPopMatrix();
+  ```
+* **Depth Simulation (Perspective Scaling)**: As the soaring birds fly across the screen, they scale down dynamically:
+  $$\text{scale}(x) = 1.0 - \left(\frac{x}{\text{SCR\_WIDTH}}\right) \times 0.6$$
+  This creates a realistic 3D depth effect on a flat 2D projection.
+
+### 🌊 3. Shaded Render Layering & Wave Equations
+* **Painter's Algorithm**: Objects are drawn in a back-to-front stack sequence. Background layers (sky, mountains, celestial objects) are drawn first, followed by midground (houses, windmills, roadways), and foreground (river, waves, tree buffers) to ensure proper occlusion.
+* **Fluid Wave Motion**: Water wave ripples are simulated using mathematical sine-wave offsets:
+  $$y(x) = \text{base\_y} + \sin((x + \text{offset}) \times 0.04) \times 3.5$$
 
 ---
 
