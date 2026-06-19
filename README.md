@@ -1,83 +1,146 @@
-# Multi-Scene 2D Animation (Cox's Bazar & Sajek Valley)
+# 🌊 Multi-Scene 2D Animation: Cox's Bazar & Sajek Valley ⛰️
 
-An interactive, multi-scene 2D graphical rendering and animation application built in **C++** using the **OpenGL Utility Toolkit (GLUT)**. The project showcases two of the most popular scenic destinations in Bangladesh: **Cox's Bazar Beach** and **Sajek Valley**, complete with dynamic environment transitions, user interactions, and custom traffic AI.
-
----
-
-## 🎨 Visual Preview & Scenes
-
-### 🌊 Scene 1: Cox's Bazar Beach
-* **Background Elements**: Sun/Moon, drifting clouds, sea view with distant/foreground sailing ships, sandy beach, hotels, and a main roadway.
-* **Ambient Cycle**: Supports real-time Day/Night toggle, transforming the sky, water coloring, hotel window lighting, stars, and vehicle headlights.
-* **Interactive Rain**: Toggle rain on and off with a mouse click.
-
-### ⛰️ Scene 2: Sajek Valley
-* **Background Elements**: Mountain backdrop, elevated green plateaus, farm cottages, windmills, roadway, and a foreground river canal with sine-wave water ripples.
-* **Dynamic Birds**: Flying birds that flap their wings using local rotation matrices and shrink as they fly further away (simulating depth scaling).
-* **Interactive Cottages**: Bounding box collision checks that let you toggle individual cottage window lights on and off via mouse clicks when in Night Mode.
+An interactive, premium-tier 2D graphics application built in **C++** using the **OpenGL Utility Toolkit (GLUT)**. It showcases two iconic landscapes of Bangladesh—the sea breeze of **Cox's Bazar** and the cloud-capped highlands of **Sajek Valley**—layered with real-time controls, day/night cycles, ambient logic, and a collision-avoidance roadway traffic AI.
 
 ---
 
-## 🕹️ Controls & Interaction Guide
+## 🗺️ System Architecture & Scenes
 
-| Input Method | Key/Event | Action |
-|---|---|---|
-| **Keyboard** | `Tab` | Switch between Cox's Bazar and Sajek Valley |
-| | `N` / `n` | Switch to **Night Mode** (lights up buildings/headlights/stars) |
-| | `D` / `d` | Switch to **Day Mode** |
-| | `0` | **Stop Speed** (stops windmills in Scene 2, traffic in Scene 1) |
-| | `1` | **Normal Speed** (default animation speed) |
-| | `2` | **Fast Speed** (speeds up traffic and windmills) |
-| | `ESC` | Exit application cleanly |
-| **Mouse Left Click** | *Cox's Bazar* | Toggle dynamic falling **Rain** |
-| | *Sajek Valley* | Click on a farmhouse to toggle its window light (Night Mode only) |
+The application uses a state-driven display manager that coordinates user input, rendering layers, and object update cycles. 
+
+### 🔄 Scene Manager & Controls Flow
+Below is the interactive state and controls map:
+
+```mermaid
+stateDiagram-v2
+    [*] --> CoxsBazar : Default (Scene 1)
+    CoxsBazar --> SajekValley : Press Tab
+    SajekValley --> CoxsBazar : Press Tab
+    
+    state CoxsBazar {
+        [*] --> DayMode1
+        DayMode1 --> NightMode1 : Press N / n
+        NightMode1 --> DayMode1 : Press D / d
+        
+        state DayMode1 {
+            [*] --> RainOff_Day
+            RainOff_Day --> RainOn_Day : Left Click
+            RainOn_Day --> RainOff_Day : Left Click
+        }
+        state NightMode1 {
+            [*] --> RainOff_Night
+            RainOff_Night --> RainOn_Night : Left Click
+            RainOn_Night --> RainOff_Night : Left Click
+        }
+    }
+    
+    state SajekValley {
+        [*] --> DayMode2
+        DayMode2 --> NightMode2 : Press N / n
+        NightMode2 --> DayMode2 : Press D / d
+        
+        state NightMode2 {
+            [*] --> CottageLightsOn
+            CottageLightsOn --> ToggleCottageLights : Left Click on Farmhouse
+            ToggleCottageLights --> CottageLightsOn
+        }
+    }
+```
 
 ---
 
-## ⚙️ Key Technical Features
+## 🛠️ Key Technical Implementations
 
-### 1. Collision-Avoidance Traffic AI (2-Pass Propagation)
-To prevent vehicles from overlapping and clumping on the two-way roadways, a custom **2-Pass Traffic AI** is implemented:
-* **Pass 1 (Proximity Detection)**: Evaluates the distance between vehicles in the same lane. If a rear vehicle is within a safe threshold (130px) of a leading vehicle, it calculates slowing adjustments.
-* **Pass 2 (Speed Propagation)**: Propagates velocity changes backward through the lane queue. In the leftward lane, speeds are adjusted using `max()`, while in the rightward lane, they are adjusted using `min()`, ensuring a uniform flow.
+### 🚗 1. Collision-Avoidance Traffic AI (2-Pass Propagation)
+To prevent vehicles in the same lane from clumping and overlapping, the update loop runs a **2-Pass Traffic AI**:
+* **Pass 1 (Proximity Scan)**: Checks the distance between vehicles. If a tailing vehicle is within a safe distance ($130\text{px}$) of the leading vehicle, it adjusts its speed.
+* **Pass 2 (Speed Propagation)**: Propagates adjusted velocities backward along the lane queue. This prevents cascading delays and preserves uniform spacing.
 
-### 2. Depth Scaling & Local Transformations
-* **Wing Flapping**: The birds fly and flap their wings using nested coordinate systems. The wing coordinates are isolated via `glPushMatrix()` and `glPopMatrix()`, translated to the body joints, and rotated using `glRotatef()`.
-* **Depth Simulation**: Birds are scaled dynamically using `glScalef()` based on their horizontal coordinate ($X$), making them appear smaller as they approach the horizon.
+```mermaid
+flowchart TD
+    Start([Start Update Loop]) --> Pass1[Pass 1: Proximity Detection]
+    Pass1 --> LoopCars1{For each vehicle i}
+    LoopCars1 --> ResetSpeed[Set speed to maxSpeed * speedScale]
+    ResetSpeed --> CheckSafe{Is vehicle j in same lane<br/>and within 130px ahead?}
+    CheckSafe -- Yes, Right Lane --> SlowRight[Adjust speed to min of i and j]
+    CheckSafe -- Yes, Left Lane --> SlowLeft[Adjust speed to max of i and j]
+    CheckSafe -- No --> NextCar1
+    SlowRight --> NextCar1
+    SlowLeft --> NextCar1
+    NextCar1 --> LoopCars1
+    LoopCars1 -- Loop Completed --> Pass2[Pass 2: Speed Propagation]
+    Pass2 --> LoopCars2{For each vehicle i}
+    LoopCars2 --> PropagateSpeed{Apply Adjusted Speed}
+    PropagateSpeed --> UpdatePos[Update position X by speed]
+    UpdatePos --> CheckBoundary{Out of boundary?}
+    CheckBoundary -- Yes --> ResetPos[Reset position to opposite screen edge]
+    CheckBoundary -- No --> NextCar2
+    ResetPos --> NextCar2
+    NextCar2 --> LoopCars2
+    LoopCars2 -- Loop Completed --> End([End Update Loop])
+```
 
-### 3. Procedural Waves & Shading
-* **Water Wave Shader**: The river canal's flowing water is simulated by computing dynamic offsets on a mathematical sine function:
+### 🛸 2. Advanced 2D Transformations (Local Matrix Stack)
+* **Wing Flapping Animation**: Wing rotation is isolated from the bird's main body translation by pushing coordinates onto the matrix stack:
+  ```cpp
+  glPushMatrix();
+  glTranslatef(0, 5, 0); // Translate to left wing joint
+  glRotatef(wingAngle, 0, 0, 1); // Rotate wing locally
+  // Draw wing triangle...
+  glPopMatrix();
+  ```
+* **Depth Simulation (Perspective Scaling)**: As the soaring birds fly across the screen, they scale down dynamically:
+  $$\text{scale}(x) = 1.0 - \left(\frac{x}{\text{SCR\_WIDTH}}\right) \times 0.6$$
+  This creates a realistic 3D depth effect on a flat 2D projection.
+
+### 🌊 3. Shaded Render Layering & Wave Equations
+* **Painter's Algorithm**: Objects are drawn in a back-to-front stack sequence. Background layers (sky, mountains, celestial objects) are drawn first, followed by midground (houses, windmills, roadways), and foreground (river, waves, tree buffers) to ensure proper occlusion.
+* **Fluid Wave Motion**: Water wave ripples are simulated using mathematical sine-wave offsets:
   $$y(x) = \text{base\_y} + \sin((x + \text{offset}) \times 0.04) \times 3.5$$
-* **Painter's Algorithm**: Strict layer rendering sequence (from background sky to foreground forest buffers) to ensure correct depth ordering without relying on a 3D Z-buffer.
 
 ---
 
-## 💻 Installation & Compilation Setup (Windows & Code::Blocks)
+## 🕹️ Controls Reference
 
-This project is configured as a **Code::Blocks** project. Follow these steps to build and run it:
+### ⌨️ Keyboard Hotkeys
+| Key | Action |
+| :---: | --- |
+| **`Tab`** | Toggle between **Scene 1 (Cox's Bazar)** and **Scene 2 (Sajek Valley)** |
+| **`N` / `n`** | Trigger **Night Mode** (activates building windows, stars, and vehicle headlights) |
+| **`D` / `d`** | Trigger **Day Mode** (sun, light blue skies, and solid building shaders) |
+| **`0`** | **Stop Speed** (stops windmills in Sajek, stops traffic in Cox's Bazar) |
+| **`1`** | **Normal Speed** (standard simulation pace) |
+| **`2`** | **Fast Speed** (accelerated traffic and windmill rotations) |
+| **`ESC`** | Terminate program cleanly |
 
-### Prerequisites
-1. **Code::Blocks IDE** with the MinGW compiler suite.
-2. **FreeGLUT** development libraries configured on your system.
-
-### Linker Settings
-Ensure the following libraries are linked in your compiler/linker settings:
-* `freeglut`
-* `opengl32`
-* `glu32`
-* `winmm`
-* `gdi32`
-
-### Building in Code::Blocks
-1. Open the project file [hi.cbp](file:///e:/AIUB/Semester%2009/COMPUTER%20GRAPHICS%20%5BJ%5D/Lab%20Tasks/hi/hi.cbp) in Code::Blocks.
-2. If necessary, update the compiler search directories:
-   * **Compiler Search Dir**: `C:/Program Files/CodeBlocks/MinGW/x86_64-w64-mingw32/include`
-   * **Linker Search Dir**: `C:/Program Files/CodeBlocks/MinGW/x86_64-w64-mingw32/lib`
-3. Click **Build and Run** (or press `F9`).
+### 🖱️ Mouse Interactions
+* **Cox's Bazar (Scene 1)**: Click anywhere on the screen to toggle realistic falling **Rain**.
+* **Sajek Valley (Scene 2)**: Left-click on any of the three farmhouses to toggle their window lights on or off (Active in **Night Mode** only, calculated via exact coordinate bounding boxes).
 
 ---
 
-## 📁 Repository Structure
-* [main.cpp](file:///e:/AIUB/Semester%2009/COMPUTER%20GRAPHICS%20%5BJ%5D/Lab%20Tasks/hi/main.cpp) — Contains the core OpenGL rendering loops, animation, and logic.
-* [hi.cbp](file:///e:/AIUB/Semester%2009/COMPUTER%20GRAPHICS%20%5BJ%5D/Lab%20Tasks/hi/hi.cbp) — Code::Blocks project file.
-* [project_documentation.txt](file:///e:/AIUB/Semester%2009/COMPUTER%20GRAPHICS%20%5BJ%5D/Lab%20Tasks/hi/project_documentation.txt) — Comprehensive Viva prep guide and code glossary.
+## 💻 Building and Compilation
+
+This project is fully configured for **Code::Blocks** with the MinGW compiler suite.
+
+### Linker Requirements
+Make sure the following library flags are configured in your linker options:
+```text
+-lfreeglut
+-lopengl32
+-lglu32
+-lwinmm
+-lgdi32
+```
+
+### Setup Instructions
+1. Open the project file [multi-scene-2d-animation.cbp](file:///e:/AIUB/Semester%2009/COMPUTER%20GRAPHICS%20%5BJ%5D/Lab%20Tasks/hi/multi-scene-2d-animation.cbp) in Code::Blocks.
+2. Confirm your compiler directories contain the correct path to the GLUT headers (e.g., `C:/Program Files/CodeBlocks/MinGW/x86_64-w64-mingw32/include`).
+3. Press **F9** to compile and launch the application.
+
+---
+
+## 📂 Code Files
+* [main.cpp](file:///e:/AIUB/Semester%2009/COMPUTER%20GRAPHICS%20%5BJ%5D/Lab%20Tasks/hi/main.cpp) - Primary source containing the rendering pipelines, event handlers, and update loop.
+* [multi-scene-2d-animation.cbp](file:///e:/AIUB/Semester%2009/COMPUTER%20GRAPHICS%20%5BJ%5D/Lab%20Tasks/hi/multi-scene-2d-animation.cbp) - Code::Blocks project file.
+* [project_documentation.txt](file:///e:/AIUB/Semester%2009/COMPUTER%20GRAPHICS%20%5BJ%5D/Lab%20Tasks/hi/project_documentation.txt) - Detailed glossary and Viva revision handbook.
